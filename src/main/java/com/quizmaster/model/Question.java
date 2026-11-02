@@ -1,0 +1,2 @@
+package com.quizmaster.model;
+public record Question(long id,long quizId,String text,String a,String b,String c,String d,String correct,int marks) {public long getId(){return id;}public long getQuizId(){return quizId;}public String getText(){return text;}public String getA(){return a;}public String getB(){return b;}public String getC(){return c;}public String getD(){return d;}public String getCorrect(){return correct;}public int getMarks(){return marks;}}

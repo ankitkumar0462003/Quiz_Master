@@ -1,0 +1,13 @@
+package com.quizmaster.servlet;
+import com.quizmaster.dao.*;import com.quizmaster.model.*;import com.quizmaster.util.*;import jakarta.servlet.*;import jakarta.servlet.annotation.*;import jakarta.servlet.http.*;import java.io.*;import java.sql.*;import java.util.Locale;
+@WebServlet(urlPatterns={"/login","/register","/logout"})
+public class AuthServlet extends HttpServlet {
+ private final UserDAO dao=new UserDAO();
+ protected void doGet(HttpServletRequest req,HttpServletResponse resp)throws ServletException,IOException{if(req.getServletPath().equals("/logout")){resp.sendError(405);return;}User u=(User)req.getSession().getAttribute("user");if(u!=null){resp.sendRedirect(req.getContextPath()+(u.getRole().equals("ADMIN")?"/admin/dashboard":"/student/dashboard"));return;}WebUtil.csrf(req.getSession());req.getRequestDispatcher("/WEB-INF/views/"+(req.getServletPath().equals("/login")?"login":"register")+".jsp").forward(req,resp);}
+ protected void doPost(HttpServletRequest req,HttpServletResponse resp)throws ServletException,IOException{req.setCharacterEncoding("UTF-8");if(!WebUtil.valid(req)){resp.sendError(403,"Invalid form token");return;}String action=req.getServletPath();if(action.equals("/logout")){HttpSession s=req.getSession(false);if(s!=null)s.invalidate();resp.sendRedirect(req.getContextPath()+"/login");return;}
+ String email=WebUtil.clean(req.getParameter("email")).toLowerCase(Locale.ROOT),pass=req.getParameter("password");if(email.length()>150||!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")||pass==null||pass.length()<8||pass.length()>128){error(req,resp,"Enter a valid email and password (8-128 characters)");return;}
+ try{if(action.equals("/register")){String name=WebUtil.clean(req.getParameter("name"));if(name.isEmpty()||name.length()>100){error(req,resp,"Name must be 1-100 characters");return;}dao.register(name,email,pass);resp.sendRedirect(req.getContextPath()+"/login?registered=1");return;}
+ User u=dao.login(email,pass);if(u==null){error(req,resp,"Incorrect email or password");return;}HttpSession old=req.getSession(false);if(old!=null)old.invalidate();HttpSession s=req.getSession(true);s.setAttribute("user",u);s.setMaxInactiveInterval(1800);WebUtil.csrf(s);resp.sendRedirect(req.getContextPath()+(u.getRole().equals("ADMIN")?"/admin/dashboard":"/student/dashboard"));}
+ catch(SQLException e){getServletContext().log("Auth DB failure",e);error(req,resp,"Operation failed; verify database connection or existing email");}}
+ private void error(HttpServletRequest r,HttpServletResponse p,String m)throws ServletException,IOException{r.setAttribute("error",m);WebUtil.csrf(r.getSession());r.getRequestDispatcher("/WEB-INF/views/"+(r.getServletPath().equals("/register")?"register":"login")+".jsp").forward(r,p);}
+}
